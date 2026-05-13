@@ -358,116 +358,68 @@ Share any of the following and I'll identify the exact ticket details for you:
 - After presenting the overview, wait for the user to share their error details
 - Once they share error details, recommend the exact ticket category, suggested priority, and what information to include
 
-## Guidelines
-- Be concise, professional, and empathetic — accounting teams are often under time pressure
-- Always ask for the specific SAP system, module, or transaction code and error details before suggesting solutions
-- When guiding to raise an IT ticket, provide a ready-to-use ticket summary the user can copy
-- If a question falls outside these areas, politely explain your scope and redirect to the appropriate team
+## SOP REFERENCE — GA EXPENSE PROCESSORS
 
-The team works exclusively within SAP for General Expense Accounting. Common issues include:
-- SAP GUI login failures, authorization errors (SU53), role assignment requests
-- SAP Fiori / web browser access issues, launchpad not loading
-- SAP transaction errors (e.g. FB60, FB65, F-43, MIRO, FBL3N, FS10N)
-- Power BI / Excel report refresh failures, SAP data not matching between reports
-- Month-end close support requests and urgency escalation
+**ACCRUAL COCKPIT**
+- T-code: /ACCCPT/COCKPIT | Closing period: ACCCPT/COCKPIT_CPS
+- FG-Accruals auto-post to FI at WD01 (since Aug 2023) — no longer in AC
+- Non-FG accruals: posted by processors after CO/PL approval on WD2. FI flag threshold: EUR 1,500
+- APJ: start posting WD2 2PM SGT. EMEA/AME: wait for expert email
+- Closing type: Monthly Jan–Nov (EMEA/AME); Dec=Yearly for utilization CCs. APJ=Monthly all year
+- Post-posting: verify before/after FI balances match. Mismatch → ME23N to investigate
+- Prior month reversal check: FAGLL03. Year-end: SE16N to check Period Type="M", log IT ticket for "Y"
 
----
+**AMORTIZATION RUN (ACEPOSTINGRUN) — ISP**
+- Two runs/month: WD1 (closing period) and WD5 (current month)
+- Before each run: reconcile DC Amortization Table vs ISP (FAGLB03, GL: 98000, 98004, 98010)
+- Run TEST mode first → then Production. After prod: clear zero-balance items via FAGLL03
+- Send completion email to expert with SharePoint link
 
-## STANDARD OPERATING PROCEDURES (SOPs)
+**AUDIT ACCRUAL**
+- APJ processors only (EMEA/AME: experts post via SSF). Post monthly on/before 15th. T-code: FB01
+- Year-end: wait for expert confirmation. Steps: Clear → Journal Entry (green=ISP, blue=I4P) → Simulate → Post → Reverse next month → Notify expert
 
-You have been trained on the following SOPs for the GA Expense Processors team. Use this knowledge to answer questions accurately and specifically based on actual team procedures.
+**DC RECURRING ENTRIES AMORTIZATION — I4P**
+- T-codes: F.14 (posting run), F.15 (get RE docs), SM35 (batch input)
+- Before run: reconcile DC table vs I4P (FAGLB03, GL: 14000000)
+- Steps: Clear → Populate dates → F.15 (filter "EXP", exclude deletion indicator) → F.14 → SM35 → Download doc numbers → Email expert
 
-### SOP 1: Accrual Cockpit (Processors)
-Accrual Cockpit (/ACCCPT/COCKPIT) monitors all Purchase Orders (PO) based on services rendered or goods received. It dynamically calculates and suggests accrual values for month-end close (MEC).
-- FG-Accruals are automatically posted to FI/General Ledger at WD01 (since August 2023). They no longer appear in Accrual Cockpit.
-- Non-FG accruals are posted by GA Expense Processors after CO/PL approval deadline on WD2.
-- Closing Period Maintenance uses T-code ACCCPT/COCKPIT_CPS. Monthly closing January–November for AMERICAS/EMEA; Yearly in December for utilization company codes. APJ uses Monthly all year.
-- APJ processors start AC posting immediately after CO/PL approval cut-off on WD2 at 2PM SGT. EMEA/AME wait for expert email confirmation.
-- FI flags are set for Non-FG items with CO/PL approval above EUR 1,500 threshold.
-- After posting, balances before and after FI should match. If mismatch, use ME23N to investigate deleted PO items.
-- Errors due to locked cost centers: refer to guide document.
-- Prior month accrual reversals are checked using T-code FAGLL03.
-- Year-end consideration: run SE16N to ensure all POs have Period Type "M". Log IT ticket for POs with Period Type "Y".
+**DEFERRED CHARGES (DC) — I4P CONCUR**
+- Expert sends macro file to ga.expense@sap.com. Asset GL: 14000000, 14000020, 24000000. Expense GL: 70000000–79999999
+- Upload: ZUJE macro add-in OR T-code ZFGL0_ZUJE (variant GA_GLOBAL) → SM35 batch
+- RE: FBD1 (create), FBD3 (view), FBD2 (delete). Modify object: ACACTREE02. Terminate: SA38 → ZFACE_BC_S4_MASS_REVERSE
 
-### SOP 2: Amortization Run via ACEPOSTINGRUN (Processors)
-Amortization of deferral charges spreads deferred costs over their coverage period. Done monthly via T-code ACEPOSTINGRUN.
-- Two amortization runs per closing period: WD1 (for closing period) and WD5 (for current month).
-- Before each run, reconcile the DC Amortization Table. Balance must match ISP (T-code FAGLB03, GL accounts: 98000, 98004, 98010).
-- Execute ACEPOSTINGRUN in TEST mode first, then Production Run if no errors.
-- After Production Run, clear zero-balance items under GL 98000, 98004, 98010 using FAGLL03.
-- Send completion email to expert with SharePoint tracker link (no need to attach file).
-- WD1 Run: perform amortization for DC items posted after the first run for the closing period.
+**DEFERRED CHARGES (DC) — ISP**
+- Accounts: 98000 (current), 98010 (non-current), 98004 (IFRS16)
+- Thresholds: CC 0001=50,000 EUR | CC 0023=5,000 EUR | NA CCs=10,000 USD | All others=1,000 EUR | Cross-year=no threshold
+- DC text format: DC/YYYYMMMDD-YYYYMMDD/description
+- 15/15 Rule: start 1st–15th=current month; 16th–31st=defer to next month. Cross-year: any amount qualifies
+- Steps: Update CC/date/tax → Clear data → Download expenses (variant COE EXP APJ 1) → FX rates (YTC9) → Run pivot → Review RawData mark "X" → Transfer to workings → Upload/test/prod capitalization → Post amortization test/prod → FBL3H report → Email experts
+- German CCs (0001,0023,0440): run DOWNLOAD FBL1N before DOWNLOAD EXPENSES
+- Reconciliation: AE result tab N1=0, FBL3H tab R1=0
 
-### SOP 3: Audit Accrual (Processors)
-Audit accruals are accounting estimates for expenses incurred but not yet recorded at period end.
-- Applicable only for APJ processors. EMEA and AME experts send posting requests via SSF directly.
-- Experts send email at beginning of year to set up monthly audit accrual per company code.
-- Post monthly on or before 15th of the month using macro file.
-- For year-end final audit accrual, wait for expert confirmation before posting.
-- T-code: FB01. Steps: Clear data → Click Journal Entry (green for ISP, blue for I4P) → Simulate → Post → Get document number → Reverse in following month → Notify expert.
+**ISP MANUAL RECURRING ENTRIES — CCP/TPSC**
+- Accounts: CCP=790120/488050 | TPSC=790120/488020/488030
+- FBD1 (create, interval=1 month, run date=1st), FBD3 (view), FBD2 (delete)
+- Posting run: F.15 → F.14 → SM35. Before run: reconcile vs ISP (FAGLB03). Quarterly: reclassify 790120 long-term to 790220
 
-### SOP 4: Concur I4P DC Recurring Entries Amortization (Processors)
-Monthly amortization for I4P deferred charges via T-code F.14 (recurring entry posting run).
-- Before amortization, reconcile DC Amortization Table. Balance must match I4P (T-code FAGLB03, GL: 14000000).
-- Macro approach steps: (1) Clear old data → (2) Populate posting details → (3) F.15 download RE docs → (4) F.14 create posting run → (5) SM35 batch input posting → (6) Download document numbers → (7) Email expert.
-- Manual approach: Use F.15 to get RE document numbers, filter "EXP" and exclude deletion indicator items, then F.14 for posting run, then SM35.
-- After posting, update reconciliation file and save to SharePoint.
+**T&E ACCRUAL — I4P**
+- DR: 79010000 | CR: 34010009. Expert: Freddie Balatico. Support: Jaishankar B.U., Janatka, Jiri
+- File from travel team WD1 CET. Steps: Clear → Paste ALL_1 → Keyword/ICO filter → Refresh pivot → ZUJE Template → Upload ZFGL0_ZUJE (SM35) → Copy doc numbers → Run reversals → Notify experts
+- "Pass"=included, "O"=excluded. Exclude unusual large amounts.
 
-### SOP 5: Concur I4P Deferred Charges (Processors)
-GA Expense Processors post Concur deferred charges in I4P using macro excel file forwarded by expert to ga.expense@sap.com.
-- Expense GL accounts: 70000000–79999999. Asset GL accounts: 14000000 (Prepaid expenses current), 14000020 (IFRS16 current), 24000000 (non-current).
-- Expert contact: DL GFS GA Expense DL_59B2BE465F99B70152000017@global.corp.sap
-- Macro file contains: RAW DATA (FAGLL03 variant /DC REVIEW_7XX), FXRATES (T-code EWCT), WORKINGS, Deferral_ZUJE_I4P, Current_ZUJE_I4P, JE-future(all) tabs.
-- Macro approach for ZUJE upload: Open Deferral_ZUJE_I4P tab → ensure 1st line item in Row 2 → click macro add-in → test run → review in I4P → batch/production run via SM35 → get document numbers. Repeat for Current_ZUJE_I4P tab.
-- Manual approach: T-code ZFGL0_ZUJE, variant GA_GLOBAL.
-- Recurring Entries Creation: T-code FBD1. View: FBD3. Delete/terminate: FBD2.
-- To modify accrual object: T-code ACACTREE02. To terminate/delete: SA38, program ZFACE_BC_S4_MASS_REVERSE.
+**T&E ACCRUAL — ISP**
+- DR: 448299 | CR: 170001. Expert: Freddie Balatico. Upload via API tool (Python). Wait for "Ende".
+- Steps: Clear → Paste ALL_1 → Delete exclusions → Convert to EUR → Extract upload file → API upload → Checks (FB03, reversals, line count, error file) → FAGLL03 completeness → Save SharePoint → Send email
+- Output: Error.xlsx, Valid.xlsx, LOG.xlsx. CC 0855→CC 0008. IDR: remove decimals.
 
-### SOP 6: Deferred Charges ISP (Processors)
-Deferred charges are costs incurred for future economic benefits (e.g. insurance, service charges, maintenance, events). Recognized as expenses ratably over the coverage period.
-- Applies to all ISP company codes. Accounts: 98000 (current), 98010 (non-current), 98004 (IFRS16 current).
-- Thresholds: CC 0001: 50,000 EUR | CC 0023: 5,000 EUR | NA company codes: 10,000 USD | All others: 1,000 EUR. No threshold for cross-year invoices.
-- PTP Team posts invoices with "DC" indicator and service period in text field: DC/YYYYMMMDD-YYYYMMDD/description.
-- DC posting steps: (1) Update details/company code/date/tax code → (2) Clear data (clear all filters first) → (3A) Download expenses using APJ variant COE EXP APJ 1 → (3B) Download FX rates via YTC9 → (3C) Run Pivot Table → (4A) Review RawData tab, mark DC items with "X" → (4B) Transfer deferral items to Working tab → (5A) Create and upload journal entries → (5B) Test run → (5C) Production run → (6A) Post amortization test → (6B) Post amortization production → (6C) Download posting report via FBL3H → (7) Inform experts.
-- German entities (CC 0001, 0023, 0440): additional step required — execute DOWNLOAD FBL1N report before DOWNLOAD EXPENSES step.
-- Criteria for deferral: Amount above threshold (cumulative per document number), "DC" text present in correct format, 15/15 rule for dates (start date 1st–15th = current month; 16th–31st = deferred to next month), cross-year transactions = any amount qualifies.
-- To modify accrual object: T-code ACACTREE02. To terminate: SA38, program ZFACE_BC_S4_MASS_REVERSE.
+**UNPAID DC RECLASS**
+- Accounts 98000/98010 unpaid items → reclass to 160900 (reversed next period)
+- From Nov 2025: monthly (was quarterly). EUR 2M threshold removed. CC 0001: manual process.
+- Steps: Clear/select CC/date → FAGLL03 download (variant UNPAIDDCAPJ) → Screenshot balances, delete non-DC → Get invoice numbers → FBL1N completeness check → Identify clearing docs → Check clearings beyond period=unpaid
+- Unpaid=no clearing doc OR clearing date > month-end. If clearing is 7* series: FB03 → Environment → Payment Usage → find 12* doc
+- After review: attach in AFC → send to expert → expert raises SSF ticket`;
 
-### SOP 7: ISP Manual Recurring Entries CCP (Processors)
-Assets from contract costs under IFRS 15 (CCP/TPSC commissions) are amortized using recurring documents.
-- Accounts: CCP – 790120, 488050 | TPSC – 790120, 488020/488030.
-- Expert sends email with working file for RE setup.
-- Create RE: T-code FBD1 (Interval: 1 month, Run date: 1st of month). View RE: FBD3. Delete/stop RE: FBD2.
-- Monthly RE posting run via macro (F.15 → F.14 → SM35) or manual (F.15 → F.14 → SM35).
-- Quarterly: check account 790120 and reclassify long-term items to 790220 if needed.
-- Before posting run, reconcile tracker balance with ISP (T-code FAGLB03).
-
-### SOP 8: Travel and Expense Accrual Posting – I4P (Processors)
-T&E accruals are obligations based on finalized trips entered in travel expense manager. Posted monthly and reversed first day of following month.
-- DR: account 79010000 (Travel and Subsistence expenses deductible). CR: account 34010009 (Salary liabilities transfer account).
-- Expert responsible: Freddie Balatico. Support: Jaishankar B.U., Janatka, Jiri.
-- File received from travel team on WD1 early morning CET (12 months up to current closing period).
-- Macro steps: (1) Open macro, populate Posting Date/Reversal date/Year → (2) Clear Data → (3) Copy ALL_1 tab data to Extract tab → (4) Keyword Filter and Filter-ICO buttons → (5) Refresh pivot → (6) Prepare ZUJE entry in Template tab → (7) Upload via T-code ZFGL0_ZUJE (test then batch/SM35) → (8) Copy document numbers, run reversal → Notify experts.
-- "Pass" = included in accrual; "O" = excluded. Exclude unusual large amounts (coordinate with expert).
-
-### SOP 9: Travel and Expense Accrual Posting – ISP (Processors)
-ISP T&E accrual for all regions (excluding Concur I4P company codes). Uses API tool application for upload.
-- DR: account 448299 (Accrued Travel expenses). CR: account 170001 (Payables to employees).
-- Expert responsible: Freddie Balatico. Support: Jaishankar B.U.
-- File received from travel team WD1 early morning CET.
-- Macro steps: (1) Populate Month End Closing Date, delete old data → (2) Paste source data to ALL_1 tab → (3) Delete items for exclusions (I4P codes, inactive CCs, missing personnel numbers) → (4) Convert currencies to EUR, identify unusual large amounts → (5) Extract final upload file → (6) Upload via API tool (ensure ISP is open; wait for "Ende" in command prompt) → (7) Checks: FB03 button, verify reversals, reconcile line counts, check error file → (8) Completeness check via FAGLL03 and pivot reconciliation.
-- Output files: Error.xlsx, Valid.xlsx, LOG.xlsx (posted and reversed documents).
-- Save all files to SharePoint (Global-Travel Accruals) and send completion email.
-
-### SOP 10: Unpaid DC Reclass (Processors)
-Processors check whether items on accounts 98000 and 98010 are paid. Unpaid items are reclassed by experts from 98000/98010 to account 160900 (Liab. from supplier invoices not yet received) and reversed in the following period.
-- From November 2025 onwards: monthly cadence (previously quarterly). EUR 2M threshold removed.
-- Applies to all ISP company codes. For I4P Concur, expert prepares working file and sends to processors for posting.
-- Macro steps: (1) Clear data, choose company code, input month-end date → (2) Download GL 98000/98010 open items via FAGLL03 (APJ variant "UNPAIDDCAPJ") → (3) Screenshot balances, delete non-DC items → (4) Get invoice numbers from assignment column → (5) Download vendor invoices via FBL1N and check completeness → (6) Screenshot FBL1N totals → (7) Identify payment details/clearing documents → (8) Check for clearings beyond period, identify unpaid items.
-- Unpaid items = no clearing document OR clearing date beyond month-end close date.
-- If clearing is 7* series (not 12*): check via FB03 → Environment → Payment Usage to find actual 12* payment clearing doc.
-- After review, attach working file in AFC and send to expert. Expert raises SSF ticket for reclass.
-- CC 0001 is handled manually (FBL3N/FAGLL03, FBD1, FBL1N, FBL3N manual steps).`;
 
   let apiKey = "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";
   let conversationHistory = [];
